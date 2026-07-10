@@ -26,39 +26,52 @@ const Map = () => {
   const [selectedFeature, setSelectedFeature] = useState(null);
 
   // 1. Chargement initial des quartiers et métros
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [neighData, subwayData] = await Promise.all([
-          fetchNeighborhoods(),
-          fetchSubways(),
-        ]);
-        setNeighborhoods(neighData);
-        setSubways(subwayData);
-      } catch (error) {
-        console.error('Erreur chargement initial :', error);
-        alert('Impossible de charger les données. Vérifiez que le backend tourne.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // 2. Gestion de la recherche attributaire
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) {
-      setSearchResults(null);
-      return;
-    }
+useEffect(() => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const data = await searchNeighborhoods(searchTerm);
-      setSearchResults(data);
+      let url = '/api/neighborhoods/geojson';
+      // Si un filtre borough est présent, on utilise l'endpoint search
+      if (boroughFilter) {
+        url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
+      }
+      const response = await axios.get(url);
+      setNeighborhoods(response.data);
+      
+      // Charger les métros (toujours)
+      const subwayRes = await axios.get('/api/subways/geojson');
+      setSubways(subwayRes.data);
     } catch (error) {
       console.error(error);
+      alert('Erreur de chargement - Vérifiez votre connexion');
+    } finally {
+      setLoading(false);
     }
   };
+  loadData();
+}, [boroughFilter]);
+
+  // 2. Gestion de la recherche attributaire
+ const handleSearch = async (e) => {
+  if (e) e.preventDefault();
+  if (!searchTerm.trim() && !boroughFilter) {
+    // Recharger tout
+    const res = await axios.get('/api/neighborhoods/geojson');
+    setNeighborhoods(res.data);
+    setSearchResults(null);
+    return;
+  }
+  try {
+    let url = `/api/neighborhoods/search?q=${encodeURIComponent(searchTerm)}`;
+    if (boroughFilter) {
+      url += `&borough=${encodeURIComponent(boroughFilter)}`;
+    }
+    const res = await axios.get(url);
+    setSearchResults(res.data);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   // 3. Gestion de la recherche spatiale (autour de moi)
   const handleRadiusSearch = async () => {
