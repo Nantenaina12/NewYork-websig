@@ -1,4 +1,4 @@
-// src/pages/Dashboard.jsx
+// frontend/src/pages/Dashboard.jsx
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Map from '../components/Map';
@@ -10,8 +10,9 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleSearch = () => {
-    // La recherche est déjà gérée dans Map, on passe juste les props
-    // On pourrait déclencher un événement, mais Map utilisera les props directement
+    // Cette fonction pourrait être appelée depuis la sidebar
+    // mais la recherche est gérée dans Map avec les props.
+    // On peut simplement la laisser vide ou forcer un re-rendu.
   };
 
   return (
@@ -35,7 +36,6 @@ const Dashboard = () => {
         ) : (
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-full overflow-y-auto">
             <StatisticsPanel />
-            {/* Vous pouvez ajouter d'autres graphiques ici */}
             <div className="bg-white rounded-xl shadow-lg p-4 border border-gray-100 flex items-center justify-center text-gray-400">
               <p>Autres statistiques (ex: densité, etc.)</p>
             </div>

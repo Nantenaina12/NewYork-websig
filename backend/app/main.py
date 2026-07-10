@@ -3,9 +3,9 @@ from fastapi import FastAPI, Depends, Query, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import text  # <--- IMPORTANT: ajout de text
 from .database import SessionLocal, engine
 from . import models, auth
-from sqlalchemy import func
 import json
 
 # Création des tables (si elles n'existent pas)
@@ -13,7 +13,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="NYC WebSIG API")
 
-# --- CORS ---
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -43,7 +43,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 @app.post("/api/register")
 async def register(username: str, password: str, email: str = None, db: Session = Depends(get_db)):
-    # Vérifier si l'utilisateur existe déjà
     existing_user = db.query(models.User).filter(models.User.username == username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Nom d'utilisateur déjà pris")
@@ -56,17 +55,14 @@ async def register(username: str, password: str, email: str = None, db: Session 
     return {"message": "Utilisateur créé avec succès", "username": new_user.username}
 
 # ===============================================
-# 1. QUARTIERS (protégé)
+# 1. QUARTIERS (GeoJSON) - corrigé avec text()
 # ===============================================
 @app.get("/api/neighborhoods/geojson")
-def get_neighborhoods_geojson(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)  # 🔒 Protection
-):
-    query = """
+def get_neighborhoods_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
         SELECT gid, boroname, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_neighborhoods
-    """
+    """)
     result = db.execute(query).fetchall()
     features = []
     for row in result:
@@ -78,29 +74,23 @@ def get_neighborhoods_geojson(
     return {"type": "FeatureCollection", "features": features}
 
 # ===============================================
-# 2. RECHERCHE AVEC FILTRE PAR BOROUGH (ajout du paramètre)
+# 2. RECHERCHE AVEC FILTRE BOROUGH - corrigé
 # ===============================================
 @app.get("/api/neighborhoods/search")
 def search_neighborhoods(
-    q: str = Query("", min_length=0),
-    borough: str = Query(None, description="Filtrer par arrondissement (Manhattan, Brooklyn, etc.)"),
+    q: str = Query("", description="Texte de recherche"),
+    borough: str = Query(None, description="Filtrer par arrondissement"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)  # 🔒 Protection
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    sql = """
+    sql = text("""
         SELECT gid, boroname, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_neighborhoods
         WHERE 1=1
-    """
-    params = {}
-    
-    if q:
-        sql += " AND boroname ILIKE :q"
-        params["q"] = f"%{q}%"
-    if borough:
-        sql += " AND boroname = :borough"
-        params["borough"] = borough
-    
+        AND (:q = '' OR boroname ILIKE :q)
+        AND (:borough IS NULL OR boroname = :borough)
+    """)
+    params = {"q": q or "", "borough": borough}
     result = db.execute(sql, params).fetchall()
     features = []
     for row in result:
@@ -112,23 +102,17 @@ def search_neighborhoods(
     return {"type": "FeatureCollection", "features": features}
 
 # ===============================================
-# 3. STATISTIQUES POUR LE GRAPHIQUE (Population par Borough)
+# 3. STATISTIQUES (population par borough) - corrigé
 # ===============================================
 @app.get("/api/statistics/population-by-borough")
-def get_population_by_borough(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)  # 🔒 Protection
-):
-    # On agrège la population des blocs de recensement par arrondissement
-    query = """
-        SELECT 
-            boroname, 
-            SUM(popn_total) as total_population
+def get_population_by_borough(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
+        SELECT boroname, SUM(popn_total) as total_population
         FROM nyc_census_blocks
         WHERE popn_total IS NOT NULL
         GROUP BY boroname
         ORDER BY total_population DESC
-    """
+    """)
     result = db.execute(query).fetchall()
     return [
         {"borough": row.boroname, "population": row.total_population}
@@ -136,7 +120,7 @@ def get_population_by_borough(
     ]
 
 # ===============================================
-# 4. RECHERCHE SPATIALE (protégée)
+# 4. RECHERCHE SPATIALE - corrigé
 # ===============================================
 @app.get("/api/spatial/within-radius")
 def find_within_radius(
@@ -144,19 +128,19 @@ def find_within_radius(
     lon: float = Query(...),
     radius: float = Query(500),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)  # 🔒 Protection
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    query = """
-        SELECT gid, boroname, popn_total, 
+    query = text("""
+        SELECT gid, boroname, popn_total,
                ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_census_blocks
         WHERE ST_DWithin(
-            geom, 
+            geom,
             ST_Transform(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), 26918),
             :radius
         )
         LIMIT 100
-    """
+    """)
     result = db.execute(query, {"lat": lat, "lon": lon, "radius": radius}).fetchall()
     features = []
     for row in result:
@@ -168,17 +152,14 @@ def find_within_radius(
     return {"type": "FeatureCollection", "features": features}
 
 # ===============================================
-# 5. METROS (protégée)
+# 5. METROS - corrigé
 # ===============================================
 @app.get("/api/subways/geojson")
-def get_subways_geojson(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)  # 🔒 Protection
-):
-    query = """
+def get_subways_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
         SELECT gid, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_subway_stations
-    """
+    """)
     result = db.execute(query).fetchall()
     features = []
     for row in result:
@@ -188,3 +169,11 @@ def get_subways_geojson(
             "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
+
+# ===============================================
+# Endpoint de test (sans authentification pour vérifier)
+# ===============================================
+@app.get("/api/test-db")
+def test_db(db: Session = Depends(get_db)):
+    count = db.query(models.Neighborhoods).count()
+    return {"status": "Connexion réussie !", "nombre_de_quartiers": count}

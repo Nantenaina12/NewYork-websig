@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, LayersControl, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
+import L from 'leaflet';
 
-// Composant pour gérer les clics sur la carte
+// Composant interne pour les clics
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
     click(e) {
@@ -14,7 +15,7 @@ function MapClickHandler({ onMapClick }) {
   return null;
 }
 
-const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) => {
+const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
   const [neighborhoods, setNeighborhoods] = useState(null);
   const [subways, setSubways] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,38 +25,43 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
   const [userLocation, setUserLocation] = useState(null);
   const [selectedFeature, setSelectedFeature] = useState(null);
 
-  // 1. Chargement initial des quartiers et métros (avec filtre borough)
+  // 1. Chargement initial (quartiers + métros) avec filtre borough
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
         let url = '/api/neighborhoods/geojson';
+        // Si un filtre borough est présent, on utilise l'endpoint search
         if (boroughFilter) {
           url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
         }
-        const response = await axios.get(url);
-        setNeighborhoods(response.data);
-        // Charger les métros
+        const neighRes = await axios.get(url);
+        setNeighborhoods(neighRes.data);
+
         const subwayRes = await axios.get('/api/subways/geojson');
         setSubways(subwayRes.data);
       } catch (error) {
-        console.error('Erreur chargement :', error);
+        console.error('Erreur chargement initial :', error);
         alert('Impossible de charger les données. Vérifiez que le backend tourne.');
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [boroughFilter]);
+  }, [boroughFilter]); // Recharger quand le filtre change
 
-  // 2. Gestion de la recherche attributaire
+  // 2. Gestion de la recherche textuelle (appelée depuis la sidebar ou localement)
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     if (!searchTerm.trim() && !boroughFilter) {
-      // Si aucun terme et aucun filtre, recharger tout
-      const res = await axios.get('/api/neighborhoods/geojson');
-      setNeighborhoods(res.data);
-      setSearchResults(null);
+      // Recharger tout
+      try {
+        const res = await axios.get('/api/neighborhoods/geojson');
+        setNeighborhoods(res.data);
+        setSearchResults(null);
+      } catch (error) {
+        console.error(error);
+      }
       return;
     }
     try {
@@ -66,22 +72,27 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
       const res = await axios.get(url);
       setSearchResults(res.data);
     } catch (error) {
-      console.error('Erreur recherche :', error);
+      console.error(error);
     }
   };
 
-  // 3. Gestion de la recherche spatiale (autour de moi)
+  // 3. Recherche spatiale (autour d'un point)
   const handleRadiusSearch = async () => {
     if (!userLocation) {
-      alert('Veuillez cliquer d\'abord sur la carte pour définir un point.');
+      alert('Veuillez cliquer sur la carte pour définir un point.');
       return;
     }
     try {
-      const url = `/api/spatial/within-radius?lat=${userLocation.lat}&lon=${userLocation.lng}&radius=${radius}`;
-      const res = await axios.get(url);
+      const res = await axios.get('/api/spatial/within-radius', {
+        params: {
+          lat: userLocation.lat,
+          lon: userLocation.lng,
+          radius: radius,
+        },
+      });
       setRadiusResults(res.data);
     } catch (error) {
-      console.error('Erreur recherche spatiale :', error);
+      console.error(error);
     }
   };
 
@@ -91,7 +102,7 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
     setRadiusResults(null);
   };
 
-  // 5. Gestion du clic sur une feature
+  // 5. Clic sur une feature
   const onFeatureClick = (event) => {
     const props = event.layer.feature.properties;
     setSelectedFeature(props);
@@ -130,12 +141,12 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
 
   return (
     <div className="flex flex-col h-full">
-      {/* Barre d'outils (recherche + spatial) */}
+      {/* Barre d'outils (recherche + spatial) - on peut l'ajouter ou la laisser dans la sidebar */}
       <div className="bg-white p-4 shadow-md z-10 flex flex-wrap gap-4 items-center">
         <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder="Rechercher un quartier (ex: Manhattan)"
+            placeholder="Rechercher un quartier"
             className="border border-gray-300 rounded-l px-4 py-2 w-full focus:outline-none focus:border-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -208,7 +219,6 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
           <MapClickHandler onMapClick={handleMapClick} />
 
           <LayersControl position="topright">
@@ -225,9 +235,7 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
               <GeoJSON
                 key="subways"
                 data={subways}
-                pointToLayer={(feature, latlng) => {
-                  return L.circleMarker(latlng, subwayStyle);
-                }}
+                pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
               />
             </LayersControl.Overlay>
 
@@ -260,7 +268,6 @@ const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) 
           </LayersControl>
         </MapContainer>
 
-        {/* Légende */}
         <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow text-xs z-[1000]">
           <span className="inline-block w-3 h-3 bg-blue-500 mr-1"></span> Quartiers<br />
           <span className="inline-block w-3 h-3 bg-yellow-400 mr-1 rounded-full"></span> Métros<br />
