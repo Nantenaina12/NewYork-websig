@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, LayersControl, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchNeighborhoods, fetchSubways, searchNeighborhoods, fetchWithinRadius } from '../services/api';
+import axios from 'axios';
 
-// Composant interne pour gérer les clics sur la carte (et les popups)
+// Composant pour gérer les clics sur la carte
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
     click(e) {
@@ -14,64 +14,61 @@ function MapClickHandler({ onMapClick }) {
   return null;
 }
 
-const Map = () => {
+const Map = ({ boroughFilter = '', searchTerm = '', setSearchTerm = () => {} }) => {
   const [neighborhoods, setNeighborhoods] = useState(null);
   const [subways, setSubways] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchResults, setSearchResults] = useState(null);
   const [radiusResults, setRadiusResults] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [radius, setRadius] = useState(500);
   const [userLocation, setUserLocation] = useState(null);
   const [selectedFeature, setSelectedFeature] = useState(null);
 
-  // 1. Chargement initial des quartiers et métros
-useEffect(() => {
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      let url = '/api/neighborhoods/geojson';
-      // Si un filtre borough est présent, on utilise l'endpoint search
-      if (boroughFilter) {
-        url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
+  // 1. Chargement initial des quartiers et métros (avec filtre borough)
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        let url = '/api/neighborhoods/geojson';
+        if (boroughFilter) {
+          url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
+        }
+        const response = await axios.get(url);
+        setNeighborhoods(response.data);
+        // Charger les métros
+        const subwayRes = await axios.get('/api/subways/geojson');
+        setSubways(subwayRes.data);
+      } catch (error) {
+        console.error('Erreur chargement :', error);
+        alert('Impossible de charger les données. Vérifiez que le backend tourne.');
+      } finally {
+        setLoading(false);
       }
-      const response = await axios.get(url);
-      setNeighborhoods(response.data);
-      
-      // Charger les métros (toujours)
-      const subwayRes = await axios.get('/api/subways/geojson');
-      setSubways(subwayRes.data);
-    } catch (error) {
-      console.error(error);
-      alert('Erreur de chargement - Vérifiez votre connexion');
-    } finally {
-      setLoading(false);
-    }
-  };
-  loadData();
-}, [boroughFilter]);
+    };
+    loadData();
+  }, [boroughFilter]);
 
   // 2. Gestion de la recherche attributaire
- const handleSearch = async (e) => {
-  if (e) e.preventDefault();
-  if (!searchTerm.trim() && !boroughFilter) {
-    // Recharger tout
-    const res = await axios.get('/api/neighborhoods/geojson');
-    setNeighborhoods(res.data);
-    setSearchResults(null);
-    return;
-  }
-  try {
-    let url = `/api/neighborhoods/search?q=${encodeURIComponent(searchTerm)}`;
-    if (boroughFilter) {
-      url += `&borough=${encodeURIComponent(boroughFilter)}`;
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchTerm.trim() && !boroughFilter) {
+      // Si aucun terme et aucun filtre, recharger tout
+      const res = await axios.get('/api/neighborhoods/geojson');
+      setNeighborhoods(res.data);
+      setSearchResults(null);
+      return;
     }
-    const res = await axios.get(url);
-    setSearchResults(res.data);
-  } catch (error) {
-    console.error(error);
-  }
-};
+    try {
+      let url = `/api/neighborhoods/search?q=${encodeURIComponent(searchTerm)}`;
+      if (boroughFilter) {
+        url += `&borough=${encodeURIComponent(boroughFilter)}`;
+      }
+      const res = await axios.get(url);
+      setSearchResults(res.data);
+    } catch (error) {
+      console.error('Erreur recherche :', error);
+    }
+  };
 
   // 3. Gestion de la recherche spatiale (autour de moi)
   const handleRadiusSearch = async () => {
@@ -80,27 +77,27 @@ useEffect(() => {
       return;
     }
     try {
-      const data = await fetchWithinRadius(userLocation.lat, userLocation.lng, radius);
-      setRadiusResults(data);
+      const url = `/api/spatial/within-radius?lat=${userLocation.lat}&lon=${userLocation.lng}&radius=${radius}`;
+      const res = await axios.get(url);
+      setRadiusResults(res.data);
     } catch (error) {
-      console.error(error);
+      console.error('Erreur recherche spatiale :', error);
     }
   };
 
-  // 4. Gestion du clic sur la carte (pour la recherche spatiale)
+  // 4. Gestion du clic sur la carte
   const handleMapClick = (latlng) => {
     setUserLocation(latlng);
-    // On efface les résultats de recherche spatiale précédents pour éviter la confusion
     setRadiusResults(null);
   };
 
-  // 5. Gestion du clic sur une feature (quartier) pour afficher ses infos
+  // 5. Gestion du clic sur une feature
   const onFeatureClick = (event) => {
     const props = event.layer.feature.properties;
     setSelectedFeature(props);
   };
 
-  // Styles pour les couches
+  // Styles
   const neighborhoodStyle = {
     fillColor: '#4A90D9',
     weight: 2,
@@ -163,23 +160,6 @@ useEffect(() => {
           >
             📍 Autour de moi
           </button>
-          <button
-  onClick={() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude, longitude } = pos.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
-        // Optionnel : recentrer la carte
-        // mapRef.current.flyTo([latitude, longitude], 14);
-      });
-    } else {
-      alert('Géolocalisation non supportée');
-    }
-  }}
-  className="bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-sm"
->
-  📡 Ma position
-</button>
           {userLocation && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
               Point: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
@@ -200,7 +180,7 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* Panneau d'informations (si une feature est sélectionnée) */}
+      {/* Panneau d'informations */}
       {selectedFeature && (
         <div className="bg-blue-50 border-l-4 border-blue-600 p-3 m-2 rounded shadow z-10">
           <h3 className="font-bold text-lg">{selectedFeature.name || selectedFeature.boroname}</h3>
@@ -217,37 +197,30 @@ useEffect(() => {
         </div>
       )}
 
-      {/* La carte Leaflet */}
+      {/* La carte */}
       <div className="flex-1 relative">
         <MapContainer
           center={[40.7128, -74.0060]}
           zoom={11}
           className="h-full w-full"
         >
-          {/* Fond de carte OpenStreetMap */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {/* Gestionnaire de clic */}
           <MapClickHandler onMapClick={handleMapClick} />
 
-          {/* Contrôle des couches */}
           <LayersControl position="topright">
-            {/* Couche des quartiers (par défaut) */}
             <LayersControl.Overlay name="Quartiers" checked>
               <GeoJSON
                 key="neighborhoods"
                 data={neighborhoods}
                 style={neighborhoodStyle}
-                eventHandlers={{
-                  click: onFeatureClick,
-                }}
+                eventHandlers={{ click: onFeatureClick }}
               />
             </LayersControl.Overlay>
 
-            {/* Couche des métros */}
             <LayersControl.Overlay name="Stations de métro">
               <GeoJSON
                 key="subways"
@@ -258,21 +231,17 @@ useEffect(() => {
               />
             </LayersControl.Overlay>
 
-            {/* Résultats de la recherche attributaire (en surbrillance) */}
             {searchResults && searchResults.features.length > 0 && (
               <LayersControl.Overlay name="Résultats recherche" checked>
                 <GeoJSON
                   key="search-results"
                   data={searchResults}
                   style={highlightStyle}
-                  eventHandlers={{
-                    click: onFeatureClick,
-                  }}
+                  eventHandlers={{ click: onFeatureClick }}
                 />
               </LayersControl.Overlay>
             )}
 
-            {/* Résultats de la recherche spatiale */}
             {radiusResults && radiusResults.features.length > 0 && (
               <LayersControl.Overlay name="Blocs à proximité" checked>
                 <GeoJSON
@@ -284,16 +253,14 @@ useEffect(() => {
                     color: '#FF4500',
                     fillOpacity: 0.6,
                   }}
-                  eventHandlers={{
-                    click: onFeatureClick,
-                  }}
+                  eventHandlers={{ click: onFeatureClick }}
                 />
               </LayersControl.Overlay>
             )}
           </LayersControl>
         </MapContainer>
 
-        {/* Petite légende en bas à droite */}
+        {/* Légende */}
         <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow text-xs z-[1000]">
           <span className="inline-block w-3 h-3 bg-blue-500 mr-1"></span> Quartiers<br />
           <span className="inline-block w-3 h-3 bg-yellow-400 mr-1 rounded-full"></span> Métros<br />
