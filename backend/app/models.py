@@ -42,3 +42,12 @@ class Rue(Base):
     id = Column(Integer)
     name = Column(String)
     geom = Column(Geometry('MULTILINESTRING', srid=26918))
+
+# À ajouter dans models.py
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    email = Column(String, unique=True, index=True, nullable=True)
+    is_active = Column(Integer, default=1)

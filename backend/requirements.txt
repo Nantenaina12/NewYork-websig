@@ -5,3 +5,6 @@ geoalchemy2
 psycopg2-binary
 python-dotenv
 pydantic
+python-jose[cryptography]  # Pour JWT
+passlib[bcrypt]            # Pour hacher les mots de passe
+python-multipart           # Pour recevoir les formulaires de login
