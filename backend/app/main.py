@@ -169,6 +169,41 @@ def get_subways_geojson(db: Session = Depends(get_db), current_user: models.User
             "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
+#Routes à New York
+@app.get("/api/streets/geojson")
+def get_streets_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
+        SELECT gid, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
+        FROM nyc_streets
+        LIMIT 5000   -- Pour éviter de surcharger, limitez le nombre
+    """)
+    result = db.execute(query).fetchall()
+    features = []
+    for row in result:
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(row.geojson),
+            "properties": {"gid": row.gid, "name": row.name}
+        })
+    return {"type": "FeatureCollection", "features": features}
+
+#Blocks
+@app.get("/api/blocks/geojson")
+def get_blocks_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
+        SELECT gid, boroname, popn_total, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
+        FROM nyc_census_blocks
+        LIMIT 2000
+    """)
+    result = db.execute(query).fetchall()
+    features = []
+    for row in result:
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(row.geojson),
+            "properties": {"gid": row.gid, "boroname": row.boroname, "population": row.popn_total}
+        })
+    return {"type": "FeatureCollection", "features": features}
 
 # ===============================================
 # Endpoint de test (sans authentification pour vérifier)

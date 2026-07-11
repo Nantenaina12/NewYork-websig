@@ -18,6 +18,8 @@ function MapClickHandler({ onMapClick }) {
 const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
   const [neighborhoods, setNeighborhoods] = useState(null);
   const [subways, setSubways] = useState(null);
+  const [streets, setStreets] = useState(null);
+  const [blocks, setBlocks] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchResults, setSearchResults] = useState(null);
   const [radiusResults, setRadiusResults] = useState(null);
@@ -40,6 +42,13 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
 
         const subwayRes = await axios.get('/api/subways/geojson');
         setSubways(subwayRes.data);
+        
+
+// Dans le useEffect de chargement, ajoutez :
+        const [streetsRes, blocksRes] = await Promise.all([axios.get(url), axios.get('/api/streets/geojson'), axios.get('/api/blocks/geojson'),
+]);
+        setStreets(streetsRes.data);
+        setBlocks(blocksRes.data);
       } catch (error) {
         console.error('Erreur chargement initial :', error);
         alert('Impossible de charger les données. Vérifiez que le backend tourne.');
@@ -238,6 +247,22 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
                 pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
               />
             </LayersControl.Overlay>
+            <LayersControl.Overlay name="Rues">
+  <GeoJSON data={streets} style={{ color: '#888', weight: 1, opacity: 0.6 }} />
+</LayersControl.Overlay>
+
+<LayersControl.Overlay name="Blocs de recensement">
+  <GeoJSON 
+    data={blocks} 
+    style={(feature) => ({
+      fillColor: feature.properties.population > 10000 ? '#FF6B6B' : '#4A90D9',
+      weight: 0.5,
+      color: 'white',
+      fillOpacity: 0.3,
+    })}
+    eventHandlers={{ click: onFeatureClick }}
+  />
+</LayersControl.Overlay>
 
             {searchResults && searchResults.features.length > 0 && (
               <LayersControl.Overlay name="Résultats recherche" checked>

@@ -22,7 +22,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-nyc-blue via-blue-800 to-cyan-600 p-4 ml-40">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-nyc-blue via-blue-800 to-cyan-600 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/20">
           <div className="text-center mb-8">
@@ -65,7 +65,7 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-nyc-blue font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-green-500 hover:to-green-600 text-nyc-blue font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
             >
               Se connecter
             </button>
