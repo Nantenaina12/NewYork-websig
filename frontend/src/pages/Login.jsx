@@ -1,8 +1,7 @@
-// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { FaUser, FaLock } from 'react-icons/fa';
+import { FaUser, FaLock, FaMapMarkedAlt } from 'react-icons/fa';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -18,55 +17,64 @@ const Login = () => {
       await login(username, password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Identifiants incorrects. Veuillez réessayer.');
-      console.error(err);
+      setError('Identifiants incorrects');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-cyan-500">
-      <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-96 border border-white/20">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white">🗽 NYC</h1>
-          <p className="text-white/70 text-sm">WebSIG - Connexion</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-nyc-blue via-blue-800 to-cyan-600 p-4 ml-40">
+      <div className="w-full max-w-md">
+        <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/20">
+          <div className="text-center mb-8">
+            <div className="flex justify-center text-5xl mb-3">
+              <FaMapMarkedAlt className="text-yellow-300" />
+            </div>
+            <h1 className="text-3xl font-bold text-white">NYC WebSIG</h1>
+            <p className="text-white/70 text-sm mt-1">Plateforme cartographique interactive</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative">
+              <FaUser className="absolute left-3 top-3 text-gray-300" />
+              <input
+                type="text"
+                placeholder="Nom d'utilisateur"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                required
+              />
+            </div>
+            <div className="relative">
+              <FaLock className="absolute left-3 top-3 text-gray-300" />
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-500/20 border border-red-400 text-red-100 p-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-nyc-blue font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+            >
+              Se connecter
+            </button>
+          </form>
+
+          <p className="text-white/40 text-xs text-center mt-6">
+            (test : admin / admin)
+          </p>
         </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="relative">
-            <FaUser className="absolute left-3 top-3 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Nom d'utilisateur"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              required
-            />
-          </div>
-          <div className="relative">
-            <FaLock className="absolute left-3 top-3 text-gray-400" />
-            <input
-              type="password"
-              placeholder="Mot de passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              required
-            />
-          </div>
-          
-          {error && <p className="text-red-300 text-sm text-center bg-red-500/20 p-2 rounded">{error}</p>}
-          
-          <button
-            type="submit"
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold py-2 px-4 rounded-lg transition duration-200 shadow-lg hover:shadow-xl"
-          >
-            Se connecter
-          </button>
-        </form>
-        <p className="text-white/50 text-xs text-center mt-4">
-          (test: admin / admin)
-        </p>
       </div>
     </div>
   );

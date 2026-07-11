@@ -2,14 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Petit réglage pour que la carte prenne toute la hauteur */
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
 }
 
-/* Correction des icônes Leaflet qui peuvent buguer avec Vite */
-.leaflet-control-zoom a {
-  color: black !important;
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
 }

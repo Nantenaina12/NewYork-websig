@@ -1,4 +1,3 @@
-// src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -7,7 +6,7 @@ import Dashboard from './pages/Dashboard';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex h-screen items-center justify-center">Chargement...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-nyc-blue">Chargement...</div>;
   if (!user) return <Navigate to="/login" />;
   return children;
 };
