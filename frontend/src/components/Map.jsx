@@ -34,7 +34,6 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
       setLoading(true);
       try {
         let url = '/api/neighborhoods/geojson';
-        // Si un filtre borough est présent, on utilise l'endpoint search
         if (boroughFilter) {
           url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
         }
@@ -43,20 +42,15 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
 
         const subwayRes = await axios.get('/api/subways/geojson');
         setSubways(subwayRes.data);
-        
 
-// Dans le useEffect de chargement, ajoutez :
-      // ...(le code existant pour neighborhoods et subways)
         const [censusRes, streetsRes, rueRes] = await Promise.all([
-        axios.get('/api/census/geojson'),
-        axios.get('/api/streets/geojson'),
-        axios.get('/api/rue/geojson'),
-      ]);
-      setNeighborhoods(neighRes.data);
-      setSubways(subwayRes.data);
-      setCensus(censusRes.data);
-      setStreets(streetsRes.data);
-      setRue(rueRes.data);
+          axios.get('/api/census/geojson'),
+          axios.get('/api/streets/geojson'),
+          axios.get('/api/rue/geojson'),
+        ]);
+        setCensus(censusRes.data);
+        setStreets(streetsRes.data);
+        setRue(rueRes.data);
   
       } catch (error) {
         console.error('Erreur chargement initial :', error);
@@ -66,13 +60,12 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
       }
     };
     loadData();
-  }, [boroughFilter]); // Recharger quand le filtre change
+  }, [boroughFilter]);
 
-  // 2. Gestion de la recherche textuelle (appelée depuis la sidebar ou localement)
+  // 2. Gestion de la recherche textuelle
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     if (!searchTerm.trim() && !boroughFilter) {
-      // Recharger tout
       try {
         const res = await axios.get('/api/neighborhoods/geojson');
         setNeighborhoods(res.data);
@@ -94,7 +87,7 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
     }
   };
 
-  // 3. Recherche spatiale (autour d'un point)
+  // 3. Recherche spatiale
   const handleRadiusSearch = async () => {
     if (!userLocation) {
       alert('Veuillez cliquer sur la carte pour définir un point.');
@@ -159,7 +152,7 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Barre d'outils (recherche + spatial) - on peut l'ajouter ou la laisser dans la sidebar */}
+      {/* Barre d'outils */}
       <div className="bg-white p-4 shadow-md z-10 flex flex-wrap gap-4 items-center">
         <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px]">
           <input
@@ -233,13 +226,24 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
           zoom={11}
           className="h-full w-full"
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
           <MapClickHandler onMapClick={handleMapClick} />
 
           <LayersControl position="topright">
+            {/* Choix du fond de carte */}
+            <LayersControl.BaseLayer name="OpenStreetMap" checked>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="Satellite (Esri)">
+              <TileLayer
+                attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              />
+            </LayersControl.BaseLayer>
+
+            {/* Couches superposables */}
             <LayersControl.Overlay name="Quartiers" checked>
               <GeoJSON
                 key="neighborhoods"
@@ -256,31 +260,47 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
                 pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
               />
             </LayersControl.Overlay>
-            <LayersControl.Overlay name="Blocs de recensement">
-                <GeoJSON key="census" data={census} style={() => ({
 
-                    fillColor: '#9B59B6',
-                    weight: 1,
-                    opacity: 0.7,
-                    color: 'white',
-                    fillOpacity: 0.3,})} eventHandlers={{ click: onFeatureClick }}/>
+            <LayersControl.Overlay name="Blocs de recensement">
+              <GeoJSON
+                key="census"
+                data={census}
+                style={() => ({
+                  fillColor: '#9B59B6',
+                  weight: 1,
+                  opacity: 0.7,
+                  color: 'white',
+                  fillOpacity: 0.3,
+                })}
+                eventHandlers={{ click: onFeatureClick }}
+              />
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Rues (nyc_streets)">
-                <GeoJSON key="streets" data={streets} style={() => ({
-                     color: '#2ECC71',
-
-                    weight: 2,
-                    opacity: 0.6,})}/>
+              <GeoJSON
+                key="streets"
+                data={streets}
+                style={() => ({
+                  color: '#2ECC71',
+                  weight: 2,
+                  opacity: 0.6,
+                })}
+              />
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Rue (table rue)">
-                <GeoJSON key="rue" data={rue} style={() => ({
-                    color: '#E74C3C',
-                    weight: 2,
-                    opacity: 0.6,
-                    dashArray: '5, 5',})} />
+              <GeoJSON
+                key="rue"
+                data={rue}
+                style={() => ({
+                  color: '#E74C3C',
+                  weight: 2,
+                  opacity: 0.6,
+                  dashArray: '5, 5',
+                })}
+              />
             </LayersControl.Overlay>
+
             {searchResults && searchResults.features.length > 0 && (
               <LayersControl.Overlay name="Résultats recherche" checked>
                 <GeoJSON
@@ -310,10 +330,12 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
           </LayersControl>
         </MapContainer>
 
+        {/* Légende */}
         <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow text-xs z-[1000]">
           <span className="inline-block w-3 h-3 bg-blue-500 mr-1"></span> Quartiers<br />
           <span className="inline-block w-3 h-3 bg-yellow-400 mr-1 rounded-full"></span> Métros<br />
-          <span className="inline-block w-3 h-3 bg-red-400 mr-1 rounded-full"></span> Routes<br />        <span className="inline-block w-3 h-3 bg-green-400 mr-1 rounded-full"></span> Blocks<br />
+          <span className="inline-block w-3 h-3 bg-red-400 mr-1 rounded-full"></span> Routes<br />
+          <span className="inline-block w-3 h-3 bg-green-400 mr-1 rounded-full"></span> Blocks<br />
           <span className="inline-block w-3 h-3 bg-orange-500 mr-1"></span> Résultat spatial
         </div>
       </div>
