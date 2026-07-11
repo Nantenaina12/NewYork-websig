@@ -24,3 +24,24 @@ export const fetchWithinRadius = async (lat, lon, radius = 500) => {
   if (!response.ok) throw new Error('Erreur recherche spatiale');
   return response.json();
 };
+
+// Census blocks
+export const fetchCensus = async () => {
+  const response = await fetch(`${API_BASE}/census/geojson`);
+  if (!response.ok) throw new Error('Erreur chargement census');
+  return response.json();
+};
+
+// Streets (nyc_streets)
+export const fetchStreets = async () => {
+  const response = await fetch(`${API_BASE}/streets/geojson`);
+  if (!response.ok) throw new Error('Erreur chargement streets');
+  return response.json();
+};
+
+// Rue (table 'rue')
+export const fetchRue = async () => {
+  const response = await fetch(`${API_BASE}/rue/geojson`);
+  if (!response.ok) throw new Error('Erreur chargement rue');
+  return response.json();
+};

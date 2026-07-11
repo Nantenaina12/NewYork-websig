@@ -1,5 +1,5 @@
 # backend/app/models.py
-from sqlalchemy import Column, Integer, String, Float, BigInteger
+from sqlalchemy import Column, Integer, String, Float, BigInteger, ForeignKey, func, DateTime
 from geoalchemy2 import Geometry
 from .database import Base
 
@@ -51,3 +51,13 @@ class User(Base):
     hashed_password = Column(String)
     email = Column(String, unique=True, index=True, nullable=True)
     is_active = Column(Integer, default=1)
+    role = Column(String, default='user')  # 'admin' ou 'user'
+
+class Log(Base):
+    __tablename__ = "logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    action = Column(String)
+    details = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=func.now())
+    ip_address = Column(String, nullable=True)

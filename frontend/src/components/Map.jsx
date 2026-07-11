@@ -18,8 +18,9 @@ function MapClickHandler({ onMapClick }) {
 const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
   const [neighborhoods, setNeighborhoods] = useState(null);
   const [subways, setSubways] = useState(null);
+  const [census, setCensus] = useState(null);
   const [streets, setStreets] = useState(null);
-  const [blocks, setBlocks] = useState(null);
+  const [rue, setRue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchResults, setSearchResults] = useState(null);
   const [radiusResults, setRadiusResults] = useState(null);
@@ -45,10 +46,18 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
         
 
 // Dans le useEffect de chargement, ajoutez :
-        const [streetsRes, blocksRes] = await Promise.all([axios.get(url), axios.get('/api/streets/geojson'), axios.get('/api/blocks/geojson'),
-]);
-        setStreets(streetsRes.data);
-        setBlocks(blocksRes.data);
+      // ...(le code existant pour neighborhoods et subways)
+        const [censusRes, streetsRes, rueRes] = await Promise.all([
+        axios.get('/api/census/geojson'),
+        axios.get('/api/streets/geojson'),
+        axios.get('/api/rue/geojson'),
+      ]);
+      setNeighborhoods(neighRes.data);
+      setSubways(subwayRes.data);
+      setCensus(censusRes.data);
+      setStreets(streetsRes.data);
+      setRue(rueRes.data);
+  
       } catch (error) {
         console.error('Erreur chargement initial :', error);
         alert('Impossible de charger les données. Vérifiez que le backend tourne.');
@@ -247,23 +256,31 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
                 pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
               />
             </LayersControl.Overlay>
-            <LayersControl.Overlay name="Rues">
-  <GeoJSON data={streets} style={{ color: '#888', weight: 1, opacity: 0.6 }} />
-</LayersControl.Overlay>
+            <LayersControl.Overlay name="Blocs de recensement">
+                <GeoJSON key="census" data={census} style={() => ({
 
-<LayersControl.Overlay name="Blocs de recensement">
-  <GeoJSON 
-    data={blocks} 
-    style={(feature) => ({
-      fillColor: feature.properties.population > 10000 ? '#FF6B6B' : '#4A90D9',
-      weight: 0.5,
-      color: 'white',
-      fillOpacity: 0.3,
-    })}
-    eventHandlers={{ click: onFeatureClick }}
-  />
-</LayersControl.Overlay>
+                    fillColor: '#9B59B6',
+                    weight: 1,
+                    opacity: 0.7,
+                    color: 'white',
+                    fillOpacity: 0.3,})} eventHandlers={{ click: onFeatureClick }}/>
+            </LayersControl.Overlay>
 
+            <LayersControl.Overlay name="Rues (nyc_streets)">
+                <GeoJSON key="streets" data={streets} style={() => ({
+                     color: '#2ECC71',
+
+                    weight: 2,
+                    opacity: 0.6,})}/>
+            </LayersControl.Overlay>
+
+            <LayersControl.Overlay name="Rue (table rue)">
+                <GeoJSON key="rue" data={rue} style={() => ({
+                    color: '#E74C3C',
+                    weight: 2,
+                    opacity: 0.6,
+                    dashArray: '5, 5',})} />
+            </LayersControl.Overlay>
             {searchResults && searchResults.features.length > 0 && (
               <LayersControl.Overlay name="Résultats recherche" checked>
                 <GeoJSON
@@ -296,6 +313,7 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
         <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow text-xs z-[1000]">
           <span className="inline-block w-3 h-3 bg-blue-500 mr-1"></span> Quartiers<br />
           <span className="inline-block w-3 h-3 bg-yellow-400 mr-1 rounded-full"></span> Métros<br />
+          <span className="inline-block w-3 h-3 bg-red-400 mr-1 rounded-full"></span> Routes<br />        <span className="inline-block w-3 h-3 bg-green-400 mr-1 rounded-full"></span> Blocks<br />
           <span className="inline-block w-3 h-3 bg-orange-500 mr-1"></span> Résultat spatial
         </div>
       </div>

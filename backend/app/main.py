@@ -7,6 +7,7 @@ from sqlalchemy import text  # <--- IMPORTANT: ajout de text
 from .database import SessionLocal, engine
 from . import models, auth
 import json
+from datetime import datetime
 
 # Création des tables (si elles n'existent pas)
 models.Base.metadata.create_all(bind=engine)
@@ -169,13 +170,15 @@ def get_subways_geojson(db: Session = Depends(get_db), current_user: models.User
             "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
-#Routes à New York
+
+
+# ================== STREETS (nyc_streets) ==================
 @app.get("/api/streets/geojson")
 def get_streets_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     query = text("""
         SELECT gid, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_streets
-        LIMIT 5000   -- Pour éviter de surcharger, limitez le nombre
+        LIMIT 400
     """)
     result = db.execute(query).fetchall()
     features = []
@@ -187,13 +190,14 @@ def get_streets_geojson(db: Session = Depends(get_db), current_user: models.User
         })
     return {"type": "FeatureCollection", "features": features}
 
-#Blocks
-@app.get("/api/blocks/geojson")
-def get_blocks_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+# ================== CENSUS BLOCKS ==================
+@app.get("/api/census/geojson")
+def get_census_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     query = text("""
         SELECT gid, boroname, popn_total, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
         FROM nyc_census_blocks
-        LIMIT 2000
+        WHERE popn_total IS NOT NULL
+        LIMIT 500
     """)
     result = db.execute(query).fetchall()
     features = []
@@ -201,7 +205,28 @@ def get_blocks_geojson(db: Session = Depends(get_db), current_user: models.User 
         features.append({
             "type": "Feature",
             "geometry": json.loads(row.geojson),
-            "properties": {"gid": row.gid, "boroname": row.boroname, "population": row.popn_total}
+            "properties": {
+                "gid": row.gid,
+                "boroname": row.boroname,
+                "population": row.popn_total
+            }
+        })
+    return {"type": "FeatureCollection", "features": features}
+
+# ================== RUE (table 'rue') ==================
+@app.get("/api/rue/geojson")
+def get_rue_geojson(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = text("""
+        SELECT gid, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) as geojson
+        FROM rue LIMIT 500
+    """)
+    result = db.execute(query).fetchall()
+    features = []
+    for row in result:
+        features.append({
+            "type": "Feature",
+            "geometry": json.loads(row.geojson),
+            "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
 
@@ -212,3 +237,32 @@ def get_blocks_geojson(db: Session = Depends(get_db), current_user: models.User 
 def test_db(db: Session = Depends(get_db)):
     count = db.query(models.Neighborhoods).count()
     return {"status": "Connexion réussie !", "nombre_de_quartiers": count}
+
+@app.get("/api/admin/logs")
+def get_logs(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # Vérifier que l'utilisateur est admin
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    logs = db.query(models.Log).order_by(models.Log.timestamp.desc()).limit(100).all()
+    return logs
+
+@app.post("/api/log")
+async def create_log(
+    action: str,
+    details: str = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    log = models.Log(
+        user_id=current_user.id,
+        action=action,
+        details=details,
+        timestamp=datetime.utcnow()
+    )
+    db.add(log)
+    db.commit()
+    return {"message": "Log enregistré"}
