@@ -1,5 +1,5 @@
 # backend/app/main.py
-from fastapi import FastAPI, Depends, Query, HTTPException, status
+from fastapi import FastAPI, Depends, Query, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from .database import SessionLocal, engine
 from . import models, auth
 import json
 from datetime import datetime
-
+from fastapi import Request
 # Création des tables (si elles n'existent pas)
 models.Base.metadata.create_all(bind=engine)
 
@@ -30,30 +30,89 @@ def get_db():
     finally:
         db.close()
 
+# --- Utilitaires ---
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "0.0.0.0"
+
+def log_action(db: Session, user_id: int, username: str, action: str, details: str = None, ip: str = None):
+    log = models.AuditLog(
+        user_id=user_id,
+        username=username,
+        action=action,
+        details=details,
+        ip_address=ip
+    )
+    db.add(log)
+    db.commit()
+
 # ===============================================
 # AUTHENTIFICATION
 # ===============================================
 @app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Identifiants incorrects")
-    
-    access_token = auth.create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = auth.create_access_token(data={"sub": user.username, "role": user.role})
+    # Correction ici : on passe 'request' (instance) et non 'Request' (classe)
+    log_action(db, user.id, user.username, "login", f"Connexion réussie depuis IP {get_client_ip(request)}")
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 
+# Inscription publique (création d'un compte standard)
 @app.post("/api/register")
 async def register(username: str, password: str, email: str = None, db: Session = Depends(get_db)):
-    existing_user = db.query(models.User).filter(models.User.username == username).first()
-    if existing_user:
+    existing = db.query(models.User).filter(models.User.username == username).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Nom d'utilisateur déjà pris")
-    
     hashed = auth.get_password_hash(password)
-    new_user = models.User(username=username, hashed_password=hashed, email=email)
+    new_user = models.User(username=username, hashed_password=hashed, email=email, role='user')  # par défaut user
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    log_action(db, new_user.id, new_user.username, "register", "Nouvel utilisateur inscrit")
     return {"message": "Utilisateur créé avec succès", "username": new_user.username}
+
+# (Admin) Liste de tous les utilisateurs
+@app.get("/api/admin/users")
+def get_users(db: Session = Depends(get_db), current_admin: models.User = Depends(auth.get_current_admin)):
+    users = db.query(models.User).all()
+    return [{"id": u.id, "username": u.username, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
+
+# (Admin) Changer le rôle d'un utilisateur
+@app.put("/api/admin/users/{user_id}/role")
+def change_user_role(user_id: int, new_role: str, db: Session = Depends(get_db), current_admin: models.User = Depends(auth.get_current_admin)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    if new_role not in ['admin', 'user']:
+        raise HTTPException(status_code=400, detail="Rôle invalide")
+    user.role = new_role
+    db.commit()
+    log_action(db, current_admin.id, current_admin.username, "change_role", f"Rôle de {user.username} changé en {new_role}")
+    return {"message": "Rôle mis à jour"}
+
+# (Admin) Récupérer les logs (historique des actions)
+@app.get("/api/admin/logs")
+def get_logs(limit: int = 100, db: Session = Depends(get_db), current_admin: models.User = Depends(auth.get_current_admin)):
+    logs = db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(limit).all()
+    return [
+        {
+            "id": log.id,
+            "username": log.username,
+            "action": log.action,
+            "details": log.details,
+            "ip_address": log.ip_address,
+            "timestamp": log.timestamp.isoformat()
+        }
+        for log in logs
+    ]
 
 # ===============================================
 # 1. QUARTIERS (GeoJSON) - corrigé avec text()
@@ -238,6 +297,17 @@ def test_db(db: Session = Depends(get_db)):
     count = db.query(models.Neighborhoods).count()
     return {"status": "Connexion réussie !", "nombre_de_quartiers": count}
 
+def log_action(db: Session, user_id: int, username: str, action: str, details: str = None, ip: str = None):
+    log = models.AuditLog(
+        user_id=user_id,
+        username=username,
+        action=action,
+        details=details,
+        ip_address=ip
+    )
+    db.add(log)
+    db.commit()
+
 @app.get("/api/admin/logs")
 def get_logs(
     db: Session = Depends(get_db),
@@ -266,3 +336,4 @@ async def create_log(
     db.add(log)
     db.commit()
     return {"message": "Log enregistré"}
+

@@ -1,6 +1,5 @@
-# backend/app/auth.py
+import os
 from datetime import datetime, timedelta
-from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -8,9 +7,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from .database import SessionLocal
 from . import models
+from dotenv import load_dotenv
 
-# Configuration (à mettre dans .env plus tard)
-SECRET_KEY = "votre_cle_secrete_tres_longue_et_aleatoire_changez_moi"
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "votre_cle_secrete_tres_longue_et_aleatoire_changez_moi")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 jour
 
@@ -23,7 +24,7 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -33,7 +34,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# Fonction pour récupérer l'utilisateur actuel (protection des routes)
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,7 +55,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return user
 
-def get_current_admin_user(current_user: models.User = Depends(get_current_user)):
+def get_current_admin(current_user: models.User = Depends(get_current_user)):
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
     return current_user

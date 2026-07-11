@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaLock, FaEnvelope, FaMapMarkedAlt } from 'react-icons/fa';
 
@@ -8,18 +8,17 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
     try {
-      await axios.post('/api/register', null, {
-        params: { username, password, email: email || undefined }
+      await axios.post('http://localhost:8000/api/register', null, {
+        params: { username, password, email }
       });
-      setSuccess('Compte créé avec succès ! Redirection vers la connexion...');
+      setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Erreur lors de l\'inscription');
@@ -35,7 +34,7 @@ const Register = () => {
               <FaMapMarkedAlt className="text-yellow-300" />
             </div>
             <h1 className="text-3xl font-bold text-white">Créer un compte</h1>
-            <p className="text-white/70 text-sm mt-1">Rejoignez la plateforme NYC</p>
+            <p className="text-white/70 text-sm mt-1">Rejoignez la plateforme NYC WebSIG</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -46,7 +45,7 @@ const Register = () => {
                 placeholder="Nom d'utilisateur"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 required
               />
             </div>
@@ -57,7 +56,7 @@ const Register = () => {
                 placeholder="Email (optionnel)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
               />
             </div>
             <div className="relative">
@@ -67,9 +66,8 @@ const Register = () => {
                 placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 required
-                minLength={4}
               />
             </div>
 
@@ -80,20 +78,20 @@ const Register = () => {
             )}
             {success && (
               <div className="bg-green-500/20 border border-green-400 text-green-100 p-3 rounded-xl text-sm">
-                {success}
+                Inscription réussie ! Redirection vers la connexion...
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-blue-900 font-bold py-3 px-4 rounded-xl transition"
             >
               S'inscrire
             </button>
           </form>
 
-          <p className="text-white/50 text-sm text-center mt-6">
-            Déjà un compte ? <Link to="/login" className="text-yellow-300 hover:underline">Se connecter</Link>
+          <p className="text-white/40 text-xs text-center mt-6">
+            Déjà un compte ? <Link to="/login" className="text-yellow-300 hover:underline">Connectez-vous</Link>
           </p>
         </div>
       </div>
