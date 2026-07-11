@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
@@ -10,8 +11,18 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // On peut décoder le token pour récupérer le role, mais on le stockera lors du login
-      setUser({ token });
+      try {
+        // Décoder le token pour extraire username et role
+        const decoded = jwtDecode(token);
+        setUser({
+          token,
+          username: decoded.sub,
+          role: decoded.role || 'user', // fallback si role absent
+        });
+      } catch (error) {
+        console.error('Token invalide', error);
+        localStorage.removeItem('token');
+      }
     }
     setLoading(false);
   }, []);
@@ -40,6 +51,7 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
+// Intercepteur pour ajouter le token à chaque requête
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
