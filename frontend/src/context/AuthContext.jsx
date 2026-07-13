@@ -4,8 +4,20 @@ import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
-// On récupère l'URL du backend ou on utilise localhost par défaut en développement local
+// URL du backend : variable d'environnement Vite ou fallback local
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Intercepteur pour ajouter le token à toutes les requêtes axios
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -13,16 +25,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    console.log('[AuthProvider] Token au chargement :', token);
     if (token) {
       try {
         const decoded = jwtDecode(token);
+        console.log('[AuthProvider] Token décodé :', decoded);
         setUser({
           token,
           username: decoded.sub,
           role: decoded.role || 'user',
         });
       } catch (error) {
-        console.error('Token invalide', error);
+        console.error('[AuthProvider] Token invalide', error);
         localStorage.removeItem('token');
       }
     }
@@ -30,23 +44,36 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
+    console.log('[Login] Tentative de connexion pour', username);
     const formData = new URLSearchParams();
     formData.append('username', username);
     formData.append('password', password);
-    
-    // Modification ici : utilisation de la variable API_URL
-    const response = await axios.post(`${API_URL}/token`, formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-    const { access_token, role } = response.data;
-    localStorage.setItem('token', access_token);
-    setUser({ token: access_token, username, role });
-    return true;
+
+    try {
+      const response = await axios.post(`${API_URL}/token`, formData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      console.log('[Login] Réponse du serveur :', response.data);
+
+      const { access_token, role } = response.data;
+      if (access_token) {
+        localStorage.setItem('token', access_token);
+        console.log('[Login] Token stocké dans localStorage');
+        setUser({ token: access_token, username, role });
+        return true;
+      } else {
+        throw new Error('Aucun token reçu');
+      }
+    } catch (error) {
+      console.error('[Login] Erreur :', error.response?.data || error.message);
+      throw error;
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    console.log('[Logout] Utilisateur déconnecté');
   };
 
   const value = { user, login, logout, loading };
@@ -54,11 +81,3 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});

@@ -1,47 +1,78 @@
 // frontend/src/services/api.js
+import axios from 'axios';
 
-// Récupère l'URL de Railway ou utilise localhost en développement
+// URL du backend : variable d'environnement Vite ou fallback local
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Fonctions avec le préfixe /api
+// Helper pour afficher les erreurs
+const handleAxiosError = (error) => {
+  console.error('[API] Erreur :', error.response?.status, error.response?.data || error.message);
+  throw error;
+};
+
 export const fetchNeighborhoods = async () => {
-  const response = await fetch(`${API_URL}/api/neighborhoods/geojson`);
-  if (!response.ok) throw new Error('Erreur chargement quartiers');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/neighborhoods/geojson`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const searchNeighborhoods = async (query) => {
-  const response = await fetch(`${API_URL}/api/neighborhoods/search?q=${encodeURIComponent(query)}`);
-  if (!response.ok) throw new Error('Erreur recherche');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/neighborhoods/search`, {
+      params: { q: query }
+    });
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const fetchSubways = async () => {
-  const response = await fetch(`${API_URL}/api/subways/geojson`);
-  if (!response.ok) throw new Error('Erreur chargement métros');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/subways/geojson`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const fetchWithinRadius = async (lat, lon, radius = 500) => {
-  const response = await fetch(`${API_URL}/api/spatial/within-radius?lat=${lat}&lon=${lon}&radius=${radius}`);
-  if (!response.ok) throw new Error('Erreur recherche spatiale');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/spatial/within-radius`, {
+      params: { lat, lon, radius }
+    });
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const fetchCensus = async () => {
-  const response = await fetch(`${API_URL}/api/census/geojson`);
-  if (!response.ok) throw new Error('Erreur chargement census');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/census/geojson`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const fetchStreets = async () => {
-  const response = await fetch(`${API_URL}/api/streets/geojson`);
-  if (!response.ok) throw new Error('Erreur chargement streets');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/streets/geojson`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
 
 export const fetchRue = async () => {
-  const response = await fetch(`${API_URL}/api/rue/geojson`);
-  if (!response.ok) throw new Error('Erreur chargement rue');
-  return response.json();
+  try {
+    const response = await axios.get(`${API_URL}/api/rue/geojson`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error);
+  }
 };
