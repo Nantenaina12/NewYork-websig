@@ -18,7 +18,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # développement local
-        "https://newyork-websig-frontend.vercel.app",  # votre frontend Vercel
+        "https://remarkable-vision-production-2ee2.up.railway.app/",  # votre frontend Railway
         # ajoutez d'autres domaines si besoin
     ],
     allow_credentials=True,
