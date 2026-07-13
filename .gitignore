@@ -24,7 +24,6 @@ dist-ssr
 *.sw?
 # Backend
 backend/venv/
-backend/app/auth.py
 backend/__pycache__/
 backend/.env
 *.pyc
