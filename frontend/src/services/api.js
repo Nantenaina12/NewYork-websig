@@ -48,3 +48,29 @@ export const fetchWithinRadius = async (lat, lon, radius = 500) => {
   });
   return validateGeoJSON(response.data);
 };
+
+// frontend/src/services/api.js (ajouter à la fin)
+
+export const fetchStatistics = async () => {
+  const response = await axios.get(`${API_URL}/api/statistics/population-by-borough`);
+  return response.data;
+};
+
+export const fetchUsers = async () => {
+  const response = await axios.get(`${API_URL}/api/admin/users`);
+  return response.data;
+};
+
+export const fetchLogs = async (limit = 50) => {
+  const response = await axios.get(`${API_URL}/api/admin/logs`, {
+    params: { limit }
+  });
+  return response.data;
+};
+
+export const updateUserRole = async (userId, newRole) => {
+  const response = await axios.put(`${API_URL}/api/admin/users/${userId}/role`, null, {
+    params: { new_role: newRole }
+  });
+  return response.data;
+};
