@@ -19,7 +19,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://newyork-websig-frontend.vercel.app",
-        "https://remarkable-vision-production-2ee2.up.railway.app"  # 👈 AJOUTEZ CETTE LIGNE
+        "https://newyork-websig-production.up.railway.app"# 👈 AJOUTEZ CETTE LIGNE
     ],
     allow_credentials=True,
     allow_methods=["*"],
