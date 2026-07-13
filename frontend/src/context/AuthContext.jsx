@@ -4,6 +4,9 @@ import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
 
+// On récupère l'URL du backend ou on utilise localhost par défaut en développement local
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,12 +15,11 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        // Décoder le token pour extraire username et role
         const decoded = jwtDecode(token);
         setUser({
           token,
           username: decoded.sub,
-          role: decoded.role || 'user', // fallback si role absent
+          role: decoded.role || 'user',
         });
       } catch (error) {
         console.error('Token invalide', error);
@@ -31,7 +33,9 @@ export const AuthProvider = ({ children }) => {
     const formData = new URLSearchParams();
     formData.append('username', username);
     formData.append('password', password);
-    const response = await axios.post('http://localhost:8000/token', formData, {
+    
+    // Modification ici : utilisation de la variable API_URL
+    const response = await axios.post(`${API_URL}/token`, formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     const { access_token, role } = response.data;
@@ -51,7 +55,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-// Intercepteur pour ajouter le token à chaque requête
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
