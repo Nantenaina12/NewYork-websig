@@ -17,9 +17,9 @@ app = FastAPI(title="NYC WebSIG API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # développement local
-        "https://remarkable-vision-production-2ee2.up.railway.app/",  # votre frontend Railway
-        # ajoutez d'autres domaines si besoin
+        "http://localhost:5173",
+        "https://newyork-websig-frontend.vercel.app",
+        "https://remarkable-vision-production-2ee2.up.railway.app"  # 👈 AJOUTEZ CETTE LIGNE
     ],
     allow_credentials=True,
     allow_methods=["*"],
