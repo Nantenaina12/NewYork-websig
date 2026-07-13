@@ -1,11 +1,17 @@
-// frontend/src/components/Map.jsx
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON, LayersControl, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import axios from 'axios';
 import L from 'leaflet';
+import { 
+  fetchNeighborhoods, 
+  fetchSubways, 
+  fetchCensus, 
+  fetchStreets, 
+  fetchRue, 
+  searchNeighborhoods,
+  fetchWithinRadius 
+} from '../services/api';
 
-// Composant interne pour les clics
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
     click(e) {
@@ -28,30 +34,28 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
   const [userLocation, setUserLocation] = useState(null);
   const [selectedFeature, setSelectedFeature] = useState(null);
 
-  // 1. Chargement initial (quartiers + métros) avec filtre borough
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
-        let url = '/api/neighborhoods/geojson';
+        let neighData;
         if (boroughFilter) {
-          url = `/api/neighborhoods/search?borough=${encodeURIComponent(boroughFilter)}`;
+          neighData = await searchNeighborhoods('', boroughFilter);
+        } else {
+          neighData = await fetchNeighborhoods();
         }
-        const neighRes = await axios.get(url);
-        setNeighborhoods(neighRes.data);
+        setNeighborhoods(neighData);
 
-        const subwayRes = await axios.get('/api/subways/geojson');
-        setSubways(subwayRes.data);
-
-        const [censusRes, streetsRes, rueRes] = await Promise.all([
-          axios.get('/api/census/geojson'),
-          axios.get('/api/streets/geojson'),
-          axios.get('/api/rue/geojson'),
+        const [subwayData, censusData, streetsData, rueData] = await Promise.all([
+          fetchSubways(),
+          fetchCensus(),
+          fetchStreets(),
+          fetchRue()
         ]);
-        setCensus(censusRes.data);
-        setStreets(streetsRes.data);
-        setRue(rueRes.data);
-  
+        setSubways(subwayData);
+        setCensus(censusData);
+        setStreets(streetsData);
+        setRue(rueData);
       } catch (error) {
         console.error('Erreur chargement initial :', error);
         alert('Impossible de charger les données. Vérifiez que le backend tourne.');
@@ -62,64 +66,45 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
     loadData();
   }, [boroughFilter]);
 
-  // 2. Gestion de la recherche textuelle
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
     if (!searchTerm.trim() && !boroughFilter) {
-      try {
-        const res = await axios.get('/api/neighborhoods/geojson');
-        setNeighborhoods(res.data);
-        setSearchResults(null);
-      } catch (error) {
-        console.error(error);
-      }
+      const data = await fetchNeighborhoods();
+      setNeighborhoods(data);
+      setSearchResults(null);
       return;
     }
     try {
-      let url = `/api/neighborhoods/search?q=${encodeURIComponent(searchTerm)}`;
-      if (boroughFilter) {
-        url += `&borough=${encodeURIComponent(boroughFilter)}`;
-      }
-      const res = await axios.get(url);
-      setSearchResults(res.data);
+      const data = await searchNeighborhoods(searchTerm, boroughFilter);
+      setSearchResults(data);
     } catch (error) {
-      console.error(error);
+      console.error('Erreur recherche :', error);
     }
   };
 
-  // 3. Recherche spatiale
   const handleRadiusSearch = async () => {
     if (!userLocation) {
       alert('Veuillez cliquer sur la carte pour définir un point.');
       return;
     }
     try {
-      const res = await axios.get('/api/spatial/within-radius', {
-        params: {
-          lat: userLocation.lat,
-          lon: userLocation.lng,
-          radius: radius,
-        },
-      });
-      setRadiusResults(res.data);
+      const data = await fetchWithinRadius(userLocation.lat, userLocation.lng, radius);
+      setRadiusResults(data);
     } catch (error) {
-      console.error(error);
+      console.error('Erreur recherche spatiale :', error);
     }
   };
 
-  // 4. Gestion du clic sur la carte
   const handleMapClick = (latlng) => {
     setUserLocation(latlng);
     setRadiusResults(null);
   };
 
-  // 5. Clic sur une feature
   const onFeatureClick = (event) => {
     const props = event.layer.feature.properties;
     setSelectedFeature(props);
   };
 
-  // Styles
   const neighborhoodStyle = {
     fillColor: '#4A90D9',
     weight: 2,
@@ -152,7 +137,6 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Barre d'outils */}
       <div className="bg-white p-4 shadow-md z-10 flex flex-wrap gap-4 items-center">
         <form onSubmit={handleSearch} className="flex flex-1 min-w-[200px]">
           <input
@@ -202,7 +186,6 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
         </button>
       </div>
 
-      {/* Panneau d'informations */}
       {selectedFeature && (
         <div className="bg-blue-50 border-l-4 border-blue-600 p-3 m-2 rounded shadow z-10">
           <h3 className="font-bold text-lg">{selectedFeature.name || selectedFeature.boroname}</h3>
@@ -219,17 +202,11 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
         </div>
       )}
 
-      {/* La carte */}
       <div className="flex-1 relative">
-        <MapContainer
-          center={[40.7128, -74.0060]}
-          zoom={11}
-          className="h-full w-full"
-        >
+        <MapContainer center={[40.7128, -74.0060]} zoom={11} className="h-full w-full">
           <MapClickHandler onMapClick={handleMapClick} />
 
           <LayersControl position="topright">
-            {/* Choix du fond de carte */}
             <LayersControl.BaseLayer name="OpenStreetMap" checked>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -243,65 +220,74 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
               />
             </LayersControl.BaseLayer>
 
-            {/* Couches superposables */}
             <LayersControl.Overlay name="Quartiers" checked>
-              <GeoJSON
-                key="neighborhoods"
-                data={neighborhoods}
-                style={neighborhoodStyle}
-                eventHandlers={{ click: onFeatureClick }}
-              />
+              {neighborhoods && neighborhoods.features && neighborhoods.features.length > 0 && (
+                <GeoJSON
+                  key="neighborhoods"
+                  data={neighborhoods}
+                  style={neighborhoodStyle}
+                  eventHandlers={{ click: onFeatureClick }}
+                />
+              )}
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Stations de métro">
-              <GeoJSON
-                key="subways"
-                data={subways}
-                pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
-              />
+              {subways && subways.features && subways.features.length > 0 && (
+                <GeoJSON
+                  key="subways"
+                  data={subways}
+                  pointToLayer={(feature, latlng) => L.circleMarker(latlng, subwayStyle)}
+                />
+              )}
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Blocs de recensement">
-              <GeoJSON
-                key="census"
-                data={census}
-                style={() => ({
-                  fillColor: '#9B59B6',
-                  weight: 1,
-                  opacity: 0.7,
-                  color: 'white',
-                  fillOpacity: 0.3,
-                })}
-                eventHandlers={{ click: onFeatureClick }}
-              />
+              {census && census.features && census.features.length > 0 && (
+                <GeoJSON
+                  key="census"
+                  data={census}
+                  style={() => ({
+                    fillColor: '#9B59B6',
+                    weight: 1,
+                    opacity: 0.7,
+                    color: 'white',
+                    fillOpacity: 0.3,
+                  })}
+                  eventHandlers={{ click: onFeatureClick }}
+                />
+              )}
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Rues (nyc_streets)">
-              <GeoJSON
-                key="streets"
-                data={streets}
-                style={() => ({
-                  color: '#2ECC71',
-                  weight: 2,
-                  opacity: 0.6,
-                })}
-              />
+              {streets && streets.features && streets.features.length > 0 && (
+                <GeoJSON
+                  key="streets"
+                  data={streets}
+                  style={() => ({
+                    color: '#2ECC71',
+                    weight: 2,
+                    opacity: 0.6,
+                  })}
+                />
+              )}
             </LayersControl.Overlay>
 
             <LayersControl.Overlay name="Rue (table rue)">
-              <GeoJSON
-                key="rue"
-                data={rue}
-                style={() => ({
-                  color: '#E74C3C',
-                  weight: 2,
-                  opacity: 0.6,
-                  dashArray: '5, 5',
-                })}
-              />
+              {rue && rue.features && rue.features.length > 0 && (
+                <GeoJSON
+                  key="rue"
+                  data={rue}
+                  style={() => ({
+                    color: '#E74C3C',
+                    weight: 2,
+                    opacity: 0.6,
+                    dashArray: '5, 5',
+                  })}
+                />
+              )}
             </LayersControl.Overlay>
 
-            {searchResults && searchResults.features.length > 0 && (
+            {searchResults && searchResults.features && searchResults.features.length > 0 && (
               <LayersControl.Overlay name="Résultats recherche" checked>
                 <GeoJSON
                   key="search-results"
@@ -312,7 +298,7 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
               </LayersControl.Overlay>
             )}
 
-            {radiusResults && radiusResults.features.length > 0 && (
+            {radiusResults && radiusResults.features && radiusResults.features.length > 0 && (
               <LayersControl.Overlay name="Blocs à proximité" checked>
                 <GeoJSON
                   key="radius-results"
@@ -330,7 +316,6 @@ const Map = ({ boroughFilter, searchTerm, setSearchTerm }) => {
           </LayersControl>
         </MapContainer>
 
-        {/* Légende */}
         <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow text-xs z-[1000]">
           <span className="inline-block w-3 h-3 bg-blue-500 mr-1"></span> Quartiers<br />
           <span className="inline-block w-3 h-3 bg-yellow-400 mr-1 rounded-full"></span> Métros<br />
