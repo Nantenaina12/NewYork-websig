@@ -3,6 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaLock, FaEnvelope, FaMapMarkedAlt } from 'react-icons/fa';
 
+// Récupérer l'URL du backend depuis les variables d'environnement
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const Register = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +18,8 @@ const Register = () => {
     e.preventDefault();
     setError('');
     try {
-      await axios.post('http://localhost:8000/api/register', null, {
+      // Utilisation de l'URL dynamique
+      await axios.post(`${API_URL}/api/register`, null, {
         params: { username, password, email }
       });
       setSuccess(true);
