@@ -87,9 +87,6 @@ const Login = () => {
               Inscrivez-vous
             </Link>
           </p>
-          <p className="text-white/40 text-xs text-center mt-2">
-            (test : admin / admin)
-          </p>
         </div>
       </div>
     </div>

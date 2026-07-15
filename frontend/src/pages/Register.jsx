@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaUser, FaLock, FaEnvelope, FaMapMarkedAlt } from 'react-icons/fa';
+import { FaUser, FaLock, FaEnvelope, FaMapMarkedAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 
-// Récupérer l'URL du backend depuis les variables d'environnement
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const Register = () => {
@@ -12,13 +11,13 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      // Utilisation de l'URL dynamique
       await axios.post(`${API_URL}/api/register`, null, {
         params: { username, password, email }
       });
@@ -66,13 +65,20 @@ const Register = () => {
             <div className="relative">
               <FaLock className="absolute left-3 top-3 text-gray-300" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full pl-10 pr-12 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-gray-300 hover:text-white transition"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
 
             {error && (
