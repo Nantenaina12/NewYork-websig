@@ -7,7 +7,8 @@ import {
   FaSearch,
   FaCity,
   FaUserCircle,
-  FaShieldAlt
+  FaShieldAlt,
+  FaUserCog
 } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
@@ -66,6 +67,16 @@ const Sidebar = ({
           }`}
         >
           <FaChartBar className="flex-shrink-0" /> <span>Statistiques</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm ${
+            activeTab === 'profile' 
+              ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
+              : 'hover:bg-gray-700 text-gray-300'
+          }`}
+        >
+          <FaUserCog className="flex-shrink-0" /> <span>Mon profil</span>
         </button>
         {isAdmin && (
           <button

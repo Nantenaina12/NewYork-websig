@@ -20,7 +20,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://newyork-websig-frontend.vercel.app",
-        "https://newyork-websig-production.up.railway.app"# 👈 AJOUTEZ CETTE LIGNE
+        "https://newyork-websig-production.up.railway.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -80,6 +80,31 @@ async def register(username: str, password: str, email: str = None, db: Session 
     db.refresh(new_user)
     log_action(db, new_user.id, new_user.username, "register", "Nouvel utilisateur inscrit")
     return {"message": "Utilisateur créé avec succès", "username": new_user.username}
+
+# ===============================================
+# CHANGER LE MOT DE PASSE (NOUVEAU)
+# ===============================================
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@app.post("/api/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # Vérifier l'ancien mot de passe
+    if not auth.verify_password(request.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    # Hasher le nouveau mot de passe
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
+    hashed_new = auth.get_password_hash(request.new_password)
+    current_user.hashed_password = hashed_new
+    db.commit()
+    log_action(db, current_user.id, current_user.username, "change_password", "Mot de passe modifié")
+    return {"message": "Mot de passe modifié avec succès"}
 
 # ===============================================
 # ADMIN
@@ -271,33 +296,6 @@ def get_rue_geojson(db: Session = Depends(get_db), current_user: models.User = D
             "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
-
-
-#Route pour moiifier le mot de passe
-
-
-# Schéma de validation
-class ChangePasswordSchema(BaseModel):
-    current_password: str
-    new_password: str
-
-@app.post("/api/change-password")
-def change_password(
-    data: ChangePasswordSchema,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    # Vérifier l'ancien mot de passe
-    if not auth.verify_password(data.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
-
-    # Hacher le nouveau mot de passe
-    new_hashed = auth.get_password_hash(data.new_password)
-    current_user.hashed_password = new_hashed
-    db.commit()
-
-    log_action(db, current_user.id, current_user.username, "change_password", "Mot de passe modifié")
-    return {"message": "Mot de passe modifié avec succès"}
 
 # ===============================================
 # TEST (public)
