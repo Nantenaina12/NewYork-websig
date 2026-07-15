@@ -34,6 +34,7 @@ const Dashboard = () => {
 
       {/* Contenu principal */}
       <div className="flex-1 relative overflow-hidden">
+        {/* Bouton hamburger pour mobile */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="fixed top-4 left-4 z-50 md:hidden bg-white p-2 rounded-lg shadow-lg hover:bg-gray-100 transition"
@@ -48,9 +49,26 @@ const Dashboard = () => {
             setSearchTerm={setSearchTerm}
           />
         )}
-        {activeTab === 'stats' && <StatisticsPanel />}
-        {activeTab === 'profile' && <Profile />}
-        {activeTab === 'admin' && <AdminPanel />}
+
+        {activeTab === 'stats' && (
+          <div className="p-4 md:p-6 h-full overflow-y-auto bg-gray-50">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+              <StatisticsPanel />
+              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 flex flex-col items-center justify-center text-gray-400">
+                <p className="text-lg font-medium">Autres indicateurs</p>
+                <p className="text-sm">(densité, évolution, etc.)</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <Profile />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminPanel />
+        )}
       </div>
     </div>
   );

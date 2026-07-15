@@ -84,6 +84,9 @@ async def register(username: str, password: str, email: str = None, db: Session 
 # ===============================================
 # CHANGER LE MOT DE PASSE (NOUVEAU)
 # ===============================================
+# ===============================================
+# CHANGER LE MOT DE PASSE (CORRIGÉ)
+# ===============================================
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
@@ -97,13 +100,24 @@ def change_password(
     # Vérifier l'ancien mot de passe
     if not auth.verify_password(request.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
-    # Hasher le nouveau mot de passe
+    
+    # Valider la longueur du nouveau mot de passe
     if len(request.new_password) < 6:
         raise HTTPException(status_code=400, detail="Le mot de passe doit faire au moins 6 caractères")
+    
+    # Hasher le nouveau mot de passe
     hashed_new = auth.get_password_hash(request.new_password)
     current_user.hashed_password = hashed_new
-    db.commit()
+    
+    # Forcer l'écriture en base
+    db.add(current_user)
+    db.flush()   # force l'envoi des modifications au serveur SQL
+    db.commit()  # valide définitivement
+    db.refresh(current_user)  # recharger l'objet fraîchement mis à jour
+    
+    # Enregistrer l'action dans les logs
     log_action(db, current_user.id, current_user.username, "change_password", "Mot de passe modifié")
+    
     return {"message": "Mot de passe modifié avec succès"}
 
 # ===============================================
