@@ -7,6 +7,7 @@ from .database import SessionLocal, engine
 from . import models, auth
 import json
 from datetime import datetime
+from pydantic import BaseModel
 
 # Création des tables (si elles n'existent pas)
 models.Base.metadata.create_all(bind=engine)
@@ -270,6 +271,33 @@ def get_rue_geojson(db: Session = Depends(get_db), current_user: models.User = D
             "properties": {"gid": row.gid, "name": row.name}
         })
     return {"type": "FeatureCollection", "features": features}
+
+
+#Route pour moiifier le mot de passe
+
+
+# Schéma de validation
+class ChangePasswordSchema(BaseModel):
+    current_password: str
+    new_password: str
+
+@app.post("/api/change-password")
+def change_password(
+    data: ChangePasswordSchema,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # Vérifier l'ancien mot de passe
+    if not auth.verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+
+    # Hacher le nouveau mot de passe
+    new_hashed = auth.get_password_hash(data.new_password)
+    current_user.hashed_password = new_hashed
+    db.commit()
+
+    log_action(db, current_user.id, current_user.username, "change_password", "Mot de passe modifié")
+    return {"message": "Mot de passe modifié avec succès"}
 
 # ===============================================
 # TEST (public)
