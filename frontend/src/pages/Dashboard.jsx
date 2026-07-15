@@ -9,6 +9,13 @@ const Dashboard = () => {
   const [boroughFilter, setBoroughFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Fonction pour déclencher la recherche (passée à Sidebar)
+  const handleSearch = () => {
+    // La recherche est gérée dans Map, on ne fait que rafraîchir
+    // On peut éventuellement forcer un rechargement, mais Map utilise ses propres effets.
+    // On pourrait trigger un état, mais laissons faire Map.
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar
@@ -18,6 +25,7 @@ const Dashboard = () => {
         setBoroughFilter={setBoroughFilter}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        onSearch={handleSearch}
       />
       <div className="flex-1 relative overflow-hidden">
         {activeTab === 'map' && (
