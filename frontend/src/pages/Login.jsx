@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { FaUser, FaLock, FaMapMarkedAlt } from 'react-icons/fa';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaUser, FaLock, FaMapMarkedAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,7 +25,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-nyc-blue via-blue-800 to-cyan-600 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-900 via-blue-700 to-cyan-500 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/20">
           <div className="text-center mb-8">
@@ -48,13 +51,20 @@ const Login = () => {
             <div className="relative">
               <FaLock className="absolute left-3 top-3 text-gray-300" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                className="w-full pl-10 pr-12 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-gray-300 hover:text-white transition"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </div>
 
             {error && (
@@ -65,14 +75,21 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-green-500 hover:to-green-600 text-nyc-blue font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-blue-900 font-bold py-3 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-xl"
             >
               Se connecter
             </button>
           </form>
+
           <p className="text-white/40 text-xs text-center mt-4">
-  Pas de compte ? <a href="/register" className="text-yellow-300 hover:underline">Inscrivez-vous</a>
-</p>
+            Pas encore de compte ?{' '}
+            <Link to="/register" className="text-yellow-300 hover:underline">
+              Inscrivez-vous
+            </Link>
+          </p>
+          <p className="text-white/40 text-xs text-center mt-2">
+            (test : admin / admin)
+          </p>
         </div>
       </div>
     </div>
